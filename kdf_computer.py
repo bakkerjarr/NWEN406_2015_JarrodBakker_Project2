@@ -30,6 +30,9 @@ class KDFComputer():
     # Other constats
     MSG_START = "Starting KDFComputer..."
 
+    # Fields
+    _num_threads = 0
+
     def __init__(self):
         # Catch Ctrl-C from the user
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -67,14 +70,15 @@ class KDFComputer():
 
     @param clientsock - the socket binding the client's connection.
     @param addr - the client's address.
+    @param thread_name - name of the thread doing the work.
     """
-    def serve_client(self, client_sock, addr):
+    def serve_client(self, client_sock, addr, thread_name):
         # Read client data
         buf_in = client_sock.recv(self.RECV_BUF_SIZE)
-        print("[+] Received data from " + str(addr[0]))
+        print("["+thread_name+"] Received data from " + str(addr[0]))
 
         client_sock.close()
-        print("[+] Closing connection with " + str(addr[0]))
+        print("["+thread_name+"] Closing connection with " + str(addr[0]))
 
         # Decode the payload and check that it's valid
         try:
@@ -82,13 +86,13 @@ class KDFComputer():
             if self.PAYLOAD_NAME not in data:
                 raise
         except:
-            print("[-] Unable to decode valid JSON from received data.")
+            print("["+thread_name+"] Unable to decode valid JSON from received data.")
             return
 
         # Compute the derived key using the payload value
         salt = os.urandom(self.SALT_LENGTH)
         dk = self.compute_kdf(data[self.PAYLOAD_NAME], salt)
-        print "[+] Derived key (hex): " + str(binascii.hexlify(dk))
+        print "["+thread_name+"] Derived key (hex): " + str(binascii.hexlify(dk))
 
     """
     Listen for incoming TCP connections and spawn threads to handle
@@ -115,7 +119,10 @@ class KDFComputer():
         while(True):
             client_sock, addr = self.sckt.accept()
             print("[+] Received connection from " + str(addr[0]))
-            t = Thread(target=self.serve_client, args=(client_sock, addr))
+            thread_name = "Thread#" + str(self._num_threads)
+            self._num_threads += 1
+            t = Thread(target=self.serve_client, name=thread_name,
+                       args=(client_sock, addr, thread_name))
             t.start()
 
         # This should never be reached.
