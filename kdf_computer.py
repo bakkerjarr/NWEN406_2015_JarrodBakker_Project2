@@ -5,6 +5,7 @@
 
 
 # Modules
+from threading import Thread
 import binascii
 import hashlib
 import json
@@ -12,7 +13,6 @@ import os
 import signal
 import socket
 import sys
-import thread
 
 class KDFComputer():
 
@@ -85,7 +85,6 @@ class KDFComputer():
             print("[-] Unable to decode valid JSON from received data.")
             return
 
-        print data[self.PAYLOAD_NAME]
         # Compute the derived key using the payload value
         salt = os.urandom(self.SALT_LENGTH)
         dk = self.compute_kdf(data[self.PAYLOAD_NAME], salt)
@@ -116,7 +115,8 @@ class KDFComputer():
         while(True):
             client_sock, addr = self.sckt.accept()
             print("[+] Received connection from " + str(addr[0]))
-            thread.start_new_thread(self.serve_client, (client_sock, addr))
+            t = Thread(target=self.serve_client, args=(client_sock, addr))
+            t.start()
 
         # This should never be reached.
         self.sckt.close()
