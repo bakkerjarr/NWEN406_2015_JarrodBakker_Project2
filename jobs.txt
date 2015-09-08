@@ -1,0 +1,15 @@
+# Each job should be represented on one line as a plain string.
+# Therefore newline characters cannot be present in a password.
+# A newline will be stripped off from the end of a file.
+
+qwertyuiop
+poiuytrewq
+Q@W#E$R%T^Y&U*I(O)P
+nr8923nfnweupf w2 r3o 
+DAW#()DdJdoidjwq90ewq
+eij 89e29en98eqwneqw*_&
+8908ewjeioJW()J)JEAWJD
+password
+password1
+drowssap
+1drowssap
