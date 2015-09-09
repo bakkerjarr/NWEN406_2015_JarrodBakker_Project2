@@ -184,7 +184,7 @@ class KDFComputer():
     def signal_handler(self, signal, frame):
         print("\n[!] Closing server socket.")
         self._sckt.close()
-        print("[+] Closing program.")
+        print("[!] Closing program.")
         # Error code for Ctrl-C should be 130 but I'm treating this as
         # a valid way to close the program.
         sys.exit(0)
