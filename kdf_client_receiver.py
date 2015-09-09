@@ -14,6 +14,7 @@ class KDFClientReceiver():
     
     # Constants
     CLIENT_PORT = 9002
+    MSG_START = "Starting KDFClient Job Receiver..."
     PAYLOAD_ID = "id"
     PAYLOAD_JOB = "password"
     PAYLOAD_RESULT = "hash"
@@ -22,6 +23,9 @@ class KDFClientReceiver():
     def __init__(self):
         # Catch Ctrl-C from the user
         signal.signal(signal.SIGINT, self.signal_handler)
+
+        # Welcome message
+        print(self.MSG_START + "\n" + len(self.MSG_START)*"=")
         
         # Initialise fields
         self._num_threads = 0

@@ -11,10 +11,11 @@ import signal
 import socket
 import sys
 
-class KDFClient():
+class KDFClientSender():
     
     # Constants
     JOB_FILE = "./jobs.txt"
+    MSG_START = "Starting KDFClient Job Sender..."
     PAYLOAD_JOB = "password"
     SERVER_PORT = 9001
     SCKT_TIMEOUT = 2
@@ -22,6 +23,9 @@ class KDFClient():
     def __init__(self, server_address):
         # Catch Ctrl-C from the user
         signal.signal(signal.SIGINT, self.signal_handler)
+
+        # Welcome message
+        print(self.MSG_START + "\n" + len(self.MSG_START)*"=")
         
         # Initialise fields
         self._server_ip = server_address
@@ -101,5 +105,5 @@ if __name__ == "__main__":
     if not options.address:
         parser.error("Server IP address was not provided.")
     # Start the client sender
-    KDFClient(options.address)
+    KDFClientSender(options.address)
 
