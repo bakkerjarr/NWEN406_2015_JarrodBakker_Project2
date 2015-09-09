@@ -20,18 +20,22 @@ class KDFComputer():
     HASH_FUNCTION = "sha512"
     NUM_ROUNDS = 1000000 # Add an extra 0 to increase CPU load,
                          # although this should be sufficient.
-    PAYLOAD_NAME = "password"
+    PAYLOAD_NAME_JOB = "password"
+    PAYLOAD_NAME_RESULT = "hash"
     SALT_LENGTH = 512 # length of salt in bytes
 
     # Socket constants
+    CLIENT_PORT = 9002
     RECV_BUF_SIZE = 1024
     SERVER_PORT = 9001
+    SCKT_TIMEOUT = 2
 
     # Other constats
     MSG_START = "Starting KDFComputer..."
 
     # Fields
     _num_threads = 0
+    _sckt = None
 
     def __init__(self):
         # Catch Ctrl-C from the user
@@ -42,7 +46,7 @@ class KDFComputer():
 
         # Create a socket for listening for incoming connections
         try:
-            self.sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except:
             print("[-] Failed to create server socket.")
             print("[-] Terminating program.")
@@ -66,6 +70,38 @@ class KDFComputer():
                                    bsalt, self.NUM_ROUNDS)
 
     """
+    Return the results of the completed work back to the client who
+    sent it.
+
+    @param addr - the client's address.
+    @param data - the completed work.
+    """
+    def return_client_job(self, addr, data, thread_name):
+        # Establish connection
+        try:
+            sckt_out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sckt_out.settimeout(self.SCKT_TIMEOUT)
+            sckt_out.connect((addr, self.CLIENT_PORT))
+            print("["+thread_name+"] Connection established with client "
+                  + str(addr) + ":" + str(self.CLIENT_PORT))
+        except:
+            print("["+thread_name+"] Unable to connect to client "
+                  + str(addr) + ":" + str(self.CLIENT_PORT))
+                return
+
+        # Send the data
+        data = str(json.dumps({self.PAYLOAD_NAME_RESULT}))
+        try:
+            print("["+thread_name+"] Sending data to client...")
+            sckt)out.sendall(data)
+            print("["+thread_name+"] Data sent to server successfully.")
+        except:
+            print("["+thread_name+"] Unable to send data to server.")
+
+        # Close the socket
+        sckt_out.close()
+
+    """
     Read data from an incoming connection and process it.
 
     @param clientsock - the socket binding the client's connection.
@@ -83,7 +119,7 @@ class KDFComputer():
         # Decode the payload and check that it's valid
         try:
             data = json.loads(buf_in)
-            if self.PAYLOAD_NAME not in data:
+            if self.PAYLOAD_NAME_JOB not in data:
                 raise
         except:
             print("["+thread_name+"] Unable to decode valid JSON from received data.")
@@ -91,8 +127,11 @@ class KDFComputer():
 
         # Compute the derived key using the payload value
         salt = os.urandom(self.SALT_LENGTH)
-        dk = self.compute_kdf(data[self.PAYLOAD_NAME], salt)
+        dk = self.compute_kdf(data[self.PAYLOAD_NAME_JOB], salt)
         print "["+thread_name+"] Derived key (hex): " + str(binascii.hexlify(dk))
+
+        # Send the derived key back to the client
+        self.return_client_job(addr[0], dk, thread_name)
 
     """
     Listen for incoming TCP connections and spawn threads to handle
@@ -101,7 +140,7 @@ class KDFComputer():
     def server_listen(self):
         # Bind port to a socket
         try:
-            self.sckt.bind(("", self.SERVER_PORT))
+            self._sckt.bind(("", self.SERVER_PORT))
             print("[+] Socket binded to port "
                   + str(self.SERVER_PORT) + ".")
         except socket.error as err:
@@ -111,13 +150,13 @@ class KDFComputer():
             print("[-] Terminating program.")
             sys.exit(1)
 
-        self.sckt.listen(5) # 5 connections can be queued at once
+        self._sckt.listen(5) # 5 connections can be queued at once
         print("[+] Listening for connections on port "
               + str(self.SERVER_PORT))
         
         # Serve connections
         while(True):
-            client_sock, addr = self.sckt.accept()
+            client_sock, addr = self._sckt.accept()
             print("[+] Received connection from " + str(addr[0]))
             thread_name = "Thread#" + str(self._num_threads)
             self._num_threads += 1
@@ -126,7 +165,7 @@ class KDFComputer():
             t.start()
 
         # This should never be reached.
-        self.sckt.close()
+        self._sckt.close()
         print("[!] Server socket closed.")
 
     """
@@ -135,7 +174,7 @@ class KDFComputer():
     """
     def signal_handler(self, signal, frame):
         print("\n[!] Closing server socket.")
-        self.sckt.close()
+        self._sckt.close()
         print("[+] Closing program.")
         # Error code for Ctrl-C should be 130 but I'm treating this as
         # a valid way to close the program.
