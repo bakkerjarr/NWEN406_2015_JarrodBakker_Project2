@@ -20,8 +20,6 @@ class KDFComputer():
     HASH_FUNCTION = "sha512"
     NUM_ROUNDS = 1000000 # Add an extra 0 to increase CPU load,
                          # although this should be sufficient.
-    PAYLOAD_NAME_JOB = "password"
-    PAYLOAD_NAME_RESULT = "hash"
     SALT_LENGTH = 512 # length of salt in bytes
 
     # Socket constants
@@ -32,10 +30,9 @@ class KDFComputer():
 
     # Other constats
     MSG_START = "Starting KDFComputer..."
-
-    # Fields
-    _num_threads = 0
-    _sckt = None
+    PAYLOAD_ID = "id"
+    PAYLOAD_JOB = "password"
+    PAYLOAD_RESULT = "hash"
 
     def __init__(self):
         # Catch Ctrl-C from the user
@@ -43,6 +40,13 @@ class KDFComputer():
 
         # Welcome message
         print(self.MSG_START + "\n" + len(self.MSG_START)*"=")
+
+        # Hash the machine's local IP address to make an ID
+        local_ip = socket.gethostbyname(socket.gethostname())
+        self._id = hashlib.sha1(local_ip).hexdigest()
+        print("Machine ID: " + self._id)
+
+        self._num_threads = 0
 
         # Create a socket for listening for incoming connections
         try:
@@ -76,7 +80,7 @@ class KDFComputer():
     @param addr - the client's address.
     @param data - the completed work.
     """
-    def return_client_job(self, addr, data, thread_name):
+    def return_client_job(self, addr, password, dk, thread_name):
         # Establish connection
         try:
             sckt_out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -87,13 +91,15 @@ class KDFComputer():
         except:
             print("["+thread_name+"] Unable to connect to client "
                   + str(addr) + ":" + str(self.CLIENT_PORT))
-                return
+            return
 
         # Send the data
-        data = str(json.dumps({self.PAYLOAD_NAME_RESULT}))
+        data = str(json.dumps({self.PAYLOAD_ID:self._id,
+                               self.PAYLOAD_RESULT:dk,
+                               self.PAYLOAD_JOB:password}))
         try:
             print("["+thread_name+"] Sending data to client...")
-            sckt)out.sendall(data)
+            sckt_out.sendall(data)
             print("["+thread_name+"] Data sent to server successfully.")
         except:
             print("["+thread_name+"] Unable to send data to server.")
@@ -104,7 +110,7 @@ class KDFComputer():
     """
     Read data from an incoming connection and process it.
 
-    @param clientsock - the socket binding the client's connection.
+    @param client_sock - the socket binding the client's connection.
     @param addr - the client's address.
     @param thread_name - name of the thread doing the work.
     """
@@ -119,19 +125,22 @@ class KDFComputer():
         # Decode the payload and check that it's valid
         try:
             data = json.loads(buf_in)
-            if self.PAYLOAD_NAME_JOB not in data:
+            if self.PAYLOAD_JOB not in data:
                 raise
         except:
-            print("["+thread_name+"] Unable to decode valid JSON from received data.")
+            print("["+thread_name+"] Unable to decode valid JSON from "
+                  "received data.")
             return
 
         # Compute the derived key using the payload value
+        password = data[self.PAYLOAD_JOB]
         salt = os.urandom(self.SALT_LENGTH)
-        dk = self.compute_kdf(data[self.PAYLOAD_NAME_JOB], salt)
-        print "["+thread_name+"] Derived key (hex): " + str(binascii.hexlify(dk))
+        dk = self.compute_kdf(password, salt)
+        dk_str = str(binascii.hexlify(dk)) # turn the dk into a readable format
+        print("["+thread_name+"] Derived key (hex): " + dk_str)
 
         # Send the derived key back to the client
-        self.return_client_job(addr[0], dk, thread_name)
+        self.return_client_job(addr[0], password, dk_str, thread_name)
 
     """
     Listen for incoming TCP connections and spawn threads to handle
