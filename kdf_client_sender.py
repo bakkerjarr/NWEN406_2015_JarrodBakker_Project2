@@ -20,7 +20,7 @@ class KDFClientSender():
     SERVER_PORT = 9001
     SCKT_TIMEOUT = 2
 
-    def __init__(self, server_address):
+    def __init__(self, server_address, batch_size=5):
         # Catch Ctrl-C from the user
         signal.signal(signal.SIGINT, self.signal_handler)
 
@@ -30,10 +30,12 @@ class KDFClientSender():
         # Initialise fields
         self._server_ip = server_address
         self._jobs = []
+        self._batch_size = batch_size
 
         self.load_jobs()
         self.send_jobs()
-    
+        print("[!] Closing program.")
+
     """
     Load the jobs from a file into a list of jobs.
     """
@@ -52,13 +54,26 @@ class KDFClientSender():
         print("[?] File read successfully.")
 
     """
-    Send the jobs to the server for processing.
+    Send the jobs to the server for processing in batches of size
+    batch_size.
+
+    @param batch_size - the number of jobs to send in one hit.
     """
     def send_jobs(self):
         if len(self._jobs) < 1:
             print("[!] No jobs exist.")
             return
+
+        print("[?] Sending jobs in batch of max. size: " + str(self._batch_size))
+
+        batch_count = 0
+
         for job in self._jobs:
+            if batch_count > self._batch_size-1:
+                print("[?] Batch sent.")
+                raw_input("\tPress <Enter> to continue...")
+                batch_count = 0
+
             # Establish a connection
             try:
                 sckt_out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -82,15 +97,18 @@ class KDFClientSender():
 
             # Close the socket
             sckt_out.close()
+
+            #Increment batch_count
+            batch_count += 1
+
+        print("[+] List of jobs has been exhausted.")
     
     """
     Catch the SIGINT call (made by Ctrl-C) and clean up the server's
     listening socket.
     """
     def signal_handler(self, signal, frame):
-        print("\n[!] Closing listening socket.")
-        self._sckt.close()
-        print("[+] Closing program.")
+        print("[!] Closing program.")
         # Error code for Ctrl-C should be 130 but I'm treating this as
         # a valid way to close the program.
         sys.exit(0)
@@ -99,11 +117,18 @@ class KDFClientSender():
 if __name__ == "__main__":
     # Parse command line arguments
     parser = OptionParser()
-    parser.add_option("-a", "--address", action="store", type="string",
+    parser.add_option("-a", action="store", type="string",
                       dest="address", help="IP address of the server.")
+    parser.add_option("-b", action="store", type="int",
+                      dest="batch_size",
+                      help="Number of jobs to send at a time.")
     (options, args) = parser.parse_args()
     if not options.address:
         parser.error("Server IP address was not provided.")
+
     # Start the client sender
-    KDFClientSender(options.address)
+    if not options.batch_size:
+        KDFClientSender(options.address)
+    else:
+        KDFClientSender(options.address, options.batch_size)
 
