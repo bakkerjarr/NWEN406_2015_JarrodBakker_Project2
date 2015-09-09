@@ -4,6 +4,7 @@
 #
 
 # Modules
+from optparse import OptionParser
 import json
 import signal
 import socket
@@ -19,13 +20,13 @@ class KDFClient():
     SERVER_PORT = 9001
     SCKT_TIMEOUT = 2
 
-    # Fields
-    _jobs = []
-    _server_ip = "127.0.0.1"
-
-    def __init__(self):
+    def __init__(self, server_address):
         # Catch Ctrl-C from the user
         signal.signal(signal.SIGINT, self.signal_handler)
+        
+        # Initialise fields
+        self._server_ip = server_address
+        self._jobs = []
 
         self.load_jobs()
         self.send_jobs()
@@ -92,6 +93,13 @@ class KDFClient():
 
 
 if __name__ == "__main__":
-    # TODO server IP as an argument
-    KDFClient()
+    # Parse command line arguments
+    parser = OptionParser()
+    parser.add_option("-a", "--address", action="store", type="string",
+                      dest="address", help="IP address of the server.")
+    (options, args) = parser.parse_args()
+    if not options.address:
+        parser.error("Server IP address was not provided.")
+    # Start the client
+    KDFClient(options.address)
 
