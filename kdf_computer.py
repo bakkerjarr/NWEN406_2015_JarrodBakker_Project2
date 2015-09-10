@@ -88,6 +88,7 @@ class KDFComputer():
                                self.PAYLOAD_JOB:password}))
         try:
             print("["+thread_name+"] Sending data to client...")
+            print("["+thread_name+"] Data: " + str(data))
             client_sock.sendall(data)
             print("["+thread_name+"] Data sent to client successfully.")
         except:

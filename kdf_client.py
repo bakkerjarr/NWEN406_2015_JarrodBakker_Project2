@@ -12,10 +12,9 @@ import signal
 import socket
 import sys
 
-class KDFClientSender():
+class KDFClient():
     
     # Constants
-    JOB_FILE = "./jobs.txt"
     MSG_START = "Starting KDFClient Job Sender..."
     PAYLOAD_ID = "id"
     PAYLOAD_JOB = "password"
@@ -23,7 +22,7 @@ class KDFClientSender():
     RECV_BUF_SIZE = 1024
     SERVER_PORT = 9001
 
-    def __init__(self, server_address, batch_size=5):
+    def __init__(self, server_address, job_file, batch_size=5):
         # Catch Ctrl-C from the user
         signal.signal(signal.SIGINT, self.signal_handler)
 
@@ -38,19 +37,21 @@ class KDFClientSender():
         self._num_threads = 0
         self._server_ip = server_address
 
-        self.load_jobs()
+        self.load_jobs(job_file)
         self.send_jobs()
         print("[!] Closing program.")
 
     """
     Load the jobs from a file into a list of jobs.
+
+    @param job_file - the file to load jobs from.
     """
-    def load_jobs(self):
-        print("[?] Opening file " + str(self.JOB_FILE) + "...")
+    def load_jobs(self, job_file):
+        print("[?] Opening file " + job_file + "...")
         try:
-            f = open(self.JOB_FILE)
+            f = open(job_file)
         except:
-            print("[-] Unable to open file " + str(self.JOB_FILE))
+            print("[-] Unable to open file " + job_file)
             return
         for line in f:
             if line[0] == "#" or not line.strip():
@@ -105,6 +106,7 @@ class KDFClientSender():
             # Client was unable to decode valid JSON from the received data.
             print("["+thread_name+"] Unable to decode valid JSON from "
                   "received data.")
+            print("["+thread_name+"] Data: " + str(data))
             return
             
         # Lock _completed_jobs before updating it. We release the lock after
@@ -175,13 +177,20 @@ if __name__ == "__main__":
     parser.add_option("-b", action="store", type="int",
                       dest="batch_size",
                       help="Number of jobs to send at a time.")
+    parser.add_option("-j", action="store", type="string", dest="job_file",
+                      help="File of jobs separated by newlines.")
+
+    # Parse and check the arguments
     (options, args) = parser.parse_args()
     if not options.address:
         parser.error("Server IP address was not provided.")
+    if not options.job_file:
+        parser.error("Job file was not provided.")
 
     # Start the client sender
     if not options.batch_size:
-        KDFClientSender(options.address)
+        KDFClient(options.address, options.job_file)
     else:
-        KDFClientSender(options.address, options.batch_size)
+        KDFClient(options.address, options.job_file,
+                        options.batch_size)
 
