@@ -6,6 +6,6 @@ Securely hashing passwords using key derivation functions (KDFs)) can be an expe
 
 ## Contents of this repo
 - jobs.txt - This file contains a series of passwords that need to be hashed by KDFCompute.
-- kdf_client_receiver.py - This program receives the completed jobs and displays them on screen.
-- kdf_client_sender.py - This program sends passwords to KDFCompute to be hashed.
+- kdf_client.py - This program sends batches of jobs out to a server specified by a CLI argument. It then listens for the results to be returned and displays them on the terminal.
+- kdf_client_debug.py - A verbose version of the above client. Messages regarding the status of network connections are printed to the terminal.
 - kdf_computer.py - This program runs on an instance to accept and process incoming work.
