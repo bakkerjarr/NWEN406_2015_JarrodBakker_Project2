@@ -5,6 +5,7 @@
 
 # Modules
 from optparse import OptionParser
+from threading import Lock
 from threading import Thread
 import json
 import signal
@@ -21,7 +22,6 @@ class KDFClientSender():
     PAYLOAD_RESULT = "hash"
     RECV_BUF_SIZE = 1024
     SERVER_PORT = 9001
-    SCKT_TIMEOUT = 2
 
     def __init__(self, server_address, batch_size=5):
         # Catch Ctrl-C from the user
@@ -31,10 +31,12 @@ class KDFClientSender():
         print(self.MSG_START + "\n" + len(self.MSG_START)*"=")
         
         # Initialise fields
-        self._server_ip = server_address
-        self._jobs = []
         self._batch_size = batch_size
+        self._completed_jobs = 0
+        self._jobs = []
+        self._lock = Lock()
         self._num_threads = 0
+        self._server_ip = server_address
 
         self.load_jobs()
         self.send_jobs()
@@ -58,36 +60,33 @@ class KDFClientSender():
         print("[?] File read successfully.")
 
     """
+    Send a job out for processing then wait for a reply containing the
+    results.
     
+    @param job - the job to send out to the server for processing.
+    @param thread_name - name of the thread doing the work.
     """
-    # TODO comments above
     def server_session(self, job, thread_name):
         # Establish a connection
         try:
             sckt_out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sckt_out.settimeout(self.SCKT_TIMEOUT)
             sckt_out.connect((self._server_ip, self.SERVER_PORT))
-            print("["+thread_name+"] Connection established with server "
-                  + str(self._server_ip) + ":" + str(self.SERVER_PORT))
+            # Client has successfully connected to the server.
         except:
-            print("["+thread_name+"] Unable to connect to server "
-                  + str(self._server_ip) + ":" + str(self.SERVER_PORT))
+            # Client was unable to connect to the server.
             return
 
         # Send the data
         data = str(json.dumps({self.PAYLOAD_JOB:job}))
         try:
-            print("["+thread_name+"] Sending data to server...")
             sckt_out.sendall(data)
-            print("["+thread_name+"] Data sent to server successfully.")
+            # Client sent data to the server successfully.
         except:
-            print("["+thread_name+"] Unable to send data to server.")
+            # Client was unable to send data to server.
+            return
 
-        # Wait for reply
-        print("["+thread_name+"] Waiting for reply...")
-        
+        # Wait for and read the reply
         buf_in = sckt_out.recv(self.RECV_BUF_SIZE)
-        print("["+thread_name+"] Received data from server.")
         
         # Close the socket
         sckt_out.close()
@@ -100,14 +99,20 @@ class KDFClientSender():
                 and self.PAYLOAD_JOB not in data):
                 raise
         except:
-            print("["+thread_name+"] Unable to decode valid JSON from "
-                  "received data.")
+            # Client was unable to decode valid JSON from the received data.
             return
-
+            
+        # Lock _completed_jobs before updating it. We release the lock after
+        # the print has been made. This is greedy but we want to be sure
+        # about what thread completed what job at a particular point in time.
+        self._lock.acquire()
+        self._completed_jobs += 1
+        print("[?] " + str(self._completed_jobs) + " jobs completed so far.")
         # Print the result to the terminal
         print("["+thread_name+"]\tMachine ID: " + data[self.PAYLOAD_ID]
               + "\n\t\tPassword: " + data[self.PAYLOAD_JOB]
               + "\n\t\tHash: " + data[self.PAYLOAD_RESULT])
+        self._lock.release()
     
     """
     Send the jobs to the server for processing in batches of size
@@ -120,15 +125,18 @@ class KDFClientSender():
             print("[!] No jobs exist.")
             return
 
+        print("[?] " + str(len(self._jobs)) + " jobs loaded.")
         print("[?] Sending jobs in batch of max. size: " + str(self._batch_size))
 
         batch_count = 0
-        self._server_ip = "NWEN406-ELB-1167097960.ap-southeast-2.elb.amazonaws.com"
+        
+        # Force the client to initiate a send
+        raw_input("\tPress <Enter> to send a batch of jobs.")
 
         for job in self._jobs:
             if batch_count > self._batch_size-1:
                 print("[?] Batch sent.")
-                raw_input("\tPress <Enter> to continue...")
+                raw_input("\tPress <Enter> to continue...\n")
                 batch_count = 0
 
             # send work in thread
