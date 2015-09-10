@@ -5,7 +5,7 @@
 
 # Modules
 from optparse import OptionParser
-from threading import Thread
+from urllib2 import urlopen
 import json
 import signal
 import socket
@@ -17,6 +17,7 @@ class KDFClientSender():
     JOB_FILE = "./jobs.txt"
     MSG_START = "Starting KDFClient Job Sender..."
     PAYLOAD_JOB = "password"
+    PAYLOAD_SRC = "source"
     SERVER_PORT = 9001
     SCKT_TIMEOUT = 2
 
@@ -28,6 +29,7 @@ class KDFClientSender():
         print(self.MSG_START + "\n" + len(self.MSG_START)*"=")
         
         # Initialise fields
+        self._client_ip = urlopen('http://ip.42.pl/raw').read()
         self._server_ip = server_address
         self._jobs = []
         self._batch_size = batch_size
@@ -67,6 +69,7 @@ class KDFClientSender():
         print("[?] Sending jobs in batch of max. size: " + str(self._batch_size))
 
         batch_count = 0
+        self._server_ip = "NWEN406-ELB-1167097960.ap-southeast-2.elb.amazonaws.com"
 
         for job in self._jobs:
             if batch_count > self._batch_size-1:
@@ -87,7 +90,8 @@ class KDFClientSender():
                 return
 
             # Send the data
-            data = str(json.dumps({self.PAYLOAD_JOB:job}))
+            data = str(json.dumps({self.PAYLOAD_SRC:self._client_ip,
+                                   self.PAYLOAD_JOB:job}))
             try:
                 print("[?] Sending data to server...")
                 sckt_out.sendall(data)

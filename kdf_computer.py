@@ -33,6 +33,7 @@ class KDFComputer():
     PAYLOAD_ID = "id"
     PAYLOAD_JOB = "password"
     PAYLOAD_RESULT = "hash"
+    PAYLOAD_SRC = "source"
 
     def __init__(self):
         # Catch Ctrl-C from the user
@@ -125,7 +126,8 @@ class KDFComputer():
         # Decode the payload and check that it's valid
         try:
             data = json.loads(buf_in)
-            if self.PAYLOAD_JOB not in data:
+            if (self.PAYLOAD_JOB not in data
+                and self.PAYLOAD_SRC not in data):
                 raise
         except:
             print("["+thread_name+"] Unable to decode valid JSON from "
@@ -140,7 +142,8 @@ class KDFComputer():
         print("["+thread_name+"] Derived key (hex): " + dk_str)
 
         # Send the derived key back to the client
-        self.return_client_job(addr[0], password, dk_str, thread_name)
+        client_ip = data[self.PAYLOAD_SRC] 
+        self.return_client_job(client_ip, password, dk_str, thread_name)
 
     """
     Listen for incoming TCP connections and spawn threads to handle
