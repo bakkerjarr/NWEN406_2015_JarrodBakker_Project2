@@ -23,7 +23,6 @@ class KDFComputer():
     SALT_LENGTH = 512 # length of salt in bytes
 
     # Socket constants
-    CLIENT_PORT = 9002
     RECV_BUF_SIZE = 1024
     SERVER_PORT = 9001
     SCKT_TIMEOUT = 2
@@ -77,10 +76,12 @@ class KDFComputer():
     Return the results of the completed work back to the client who
     sent it.
 
-    @param addr - the client's address.
-    @param data - the completed work.
+    @param client_sock - a connection with the client.
+    @param password - the original work set out.
+    @param dk - derived key computed from the password.
+    @param thread_name - name of the thread doing the work
     """
-    def return_client_job(self, client_sock, addr, password, dk, thread_name):
+    def return_client_job(self, client_sock, password, dk, thread_name):
         # Establish connection
         data = str(json.dumps({self.PAYLOAD_ID:self._id,
                                self.PAYLOAD_RESULT:dk,
@@ -88,9 +89,10 @@ class KDFComputer():
         try:
             print("["+thread_name+"] Sending data to client...")
             client_sock.sendall(data)
-            print("["+thread_name+"] Data sent to server successfully.")
+            print("["+thread_name+"] Data sent to client successfully.")
         except:
-            print("["+thread_name+"] Unable to send data to server.")
+            print("["+thread_name+"] Unable to send data to the client.")
+            pass
 
         # Close the socket
         client_sock.close()
@@ -125,7 +127,7 @@ class KDFComputer():
         print("["+thread_name+"] Derived key (hex): " + dk_str)
 
         # Send the derived key back to the client
-        self.return_client_job(client_sock, addr, password, dk_str, thread_name)
+        self.return_client_job(client_sock, password, dk_str, thread_name)
 
     """
     Listen for incoming TCP connections and spawn threads to handle
