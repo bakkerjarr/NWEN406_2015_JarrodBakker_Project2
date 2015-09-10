@@ -74,6 +74,8 @@ class KDFClientSender():
             # Client has successfully connected to the server.
         except:
             # Client was unable to connect to the server.
+            print("["+thread_name+"] Unable to connect to server "
+                  + str(self._server_ip) + ":" + str(self.SERVER_PORT))
             return
 
         # Send the data
@@ -83,6 +85,7 @@ class KDFClientSender():
             # Client sent data to the server successfully.
         except:
             # Client was unable to send data to server.
+            print("["+thread_name+"] Unable to send data to server.")
             return
 
         # Wait for and read the reply
@@ -100,6 +103,8 @@ class KDFClientSender():
                 raise
         except:
             # Client was unable to decode valid JSON from the received data.
+            print("["+thread_name+"] Unable to decode valid JSON from "
+                  "received data.")
             return
             
         # Lock _completed_jobs before updating it. We release the lock after
