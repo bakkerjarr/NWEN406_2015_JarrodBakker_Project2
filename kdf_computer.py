@@ -33,8 +33,7 @@ class KDFComputer():
     PAYLOAD_ID = "id"
     PAYLOAD_JOB = "password"
     PAYLOAD_RESULT = "hash"
-    PAYLOAD_SRC = "source"
-
+    
     def __init__(self):
         # Catch Ctrl-C from the user
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -81,32 +80,20 @@ class KDFComputer():
     @param addr - the client's address.
     @param data - the completed work.
     """
-    def return_client_job(self, addr, password, dk, thread_name):
+    def return_client_job(self, client_sock, addr, password, dk, thread_name):
         # Establish connection
-        try:
-            sckt_out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sckt_out.settimeout(self.SCKT_TIMEOUT)
-            sckt_out.connect((addr, self.CLIENT_PORT))
-            print("["+thread_name+"] Connection established with client "
-                  + str(addr) + ":" + str(self.CLIENT_PORT))
-        except:
-            print("["+thread_name+"] Unable to connect to client "
-                  + str(addr) + ":" + str(self.CLIENT_PORT))
-            return
-
-        # Send the data
         data = str(json.dumps({self.PAYLOAD_ID:self._id,
                                self.PAYLOAD_RESULT:dk,
                                self.PAYLOAD_JOB:password}))
         try:
             print("["+thread_name+"] Sending data to client...")
-            sckt_out.sendall(data)
+            client_sock.sendall(data)
             print("["+thread_name+"] Data sent to server successfully.")
         except:
             print("["+thread_name+"] Unable to send data to server.")
 
         # Close the socket
-        sckt_out.close()
+        client_sock.close()
 
     """
     Read data from an incoming connection and process it.
@@ -120,14 +107,10 @@ class KDFComputer():
         buf_in = client_sock.recv(self.RECV_BUF_SIZE)
         print("["+thread_name+"] Received data from " + str(addr[0]))
 
-        client_sock.close()
-        print("["+thread_name+"] Closing connection with " + str(addr[0]))
-
         # Decode the payload and check that it's valid
         try:
             data = json.loads(buf_in)
-            if (self.PAYLOAD_JOB not in data
-                and self.PAYLOAD_SRC not in data):
+            if self.PAYLOAD_JOB not in data:
                 raise
         except:
             print("["+thread_name+"] Unable to decode valid JSON from "
@@ -142,8 +125,7 @@ class KDFComputer():
         print("["+thread_name+"] Derived key (hex): " + dk_str)
 
         # Send the derived key back to the client
-        client_ip = data[self.PAYLOAD_SRC] 
-        self.return_client_job(client_ip, password, dk_str, thread_name)
+        self.return_client_job(client_sock, addr, password, dk_str, thread_name)
 
     """
     Listen for incoming TCP connections and spawn threads to handle
