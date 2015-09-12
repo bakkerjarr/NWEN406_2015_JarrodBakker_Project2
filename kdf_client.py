@@ -22,7 +22,7 @@ class KDFClient():
     RECV_BUF_SIZE = 1024
     SERVER_PORT = 9001
 
-    def __init__(self, server_address, job_file, batch_size=5):
+    def __init__(self, server_address, job_file):
         # Catch Ctrl-C from the user
         signal.signal(signal.SIGINT, self.signal_handler)
 
@@ -30,7 +30,7 @@ class KDFClient():
         print(self.MSG_START + "\n" + len(self.MSG_START)*"=")
         
         # Initialise fields
-        self._batch_size = batch_size
+        self._batch_size = 10
         self._completed_jobs = 0
         self._jobs = []
         self._lock = Lock()
@@ -174,9 +174,6 @@ if __name__ == "__main__":
     parser = OptionParser()
     parser.add_option("-a", action="store", type="string",
                       dest="address", help="IP address of the server.")
-    parser.add_option("-b", action="store", type="int",
-                      dest="batch_size",
-                      help="Number of jobs to send at a time.")
     parser.add_option("-j", action="store", type="string", dest="job_file",
                       help="File of jobs separated by newlines.")
 
@@ -188,9 +185,5 @@ if __name__ == "__main__":
         parser.error("Job file was not provided.")
 
     # Start the client sender
-    if not options.batch_size:
-        KDFClient(options.address, options.job_file)
-    else:
-        KDFClient(options.address, options.job_file,
-                        options.batch_size)
+    KDFClient(options.address, options.job_file)
 
