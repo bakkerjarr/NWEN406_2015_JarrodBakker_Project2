@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 #
 # Author: Jarrod N. Bakker
 # NWEN406 T2 2015, Project 2
@@ -22,7 +24,7 @@ class KDFClient():
     RECV_BUF_SIZE = 1024
     SERVER_PORT = 9001
 
-    def __init__(self, server_address, job_file, batch_size=5):
+    def __init__(self, server_address, job_file):
         # Catch Ctrl-C from the user
         signal.signal(signal.SIGINT, self.signal_handler)
 
@@ -30,7 +32,7 @@ class KDFClient():
         print(self.MSG_START + "\n" + len(self.MSG_START)*"=")
         
         # Initialise fields
-        self._batch_size = batch_size
+        self._batch_size = 10
         self._completed_jobs = 0
         self._jobs = []
         self._lock = Lock()
@@ -43,8 +45,10 @@ class KDFClient():
 
     """
     Load the jobs from a file into a list of jobs.
+    
+    @param job_file - the file to load jobs from.
     """
-    def load_jobs(self):
+    def load_jobs(self, job_file):
         print("[?] Opening file " + job_file + "...")
         try:
             f = open(job_file)
@@ -69,6 +73,7 @@ class KDFClient():
         # Establish a connection
         try:
             sckt_out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sckt_out.settimeout(360)
             sckt_out.connect((self._server_ip, self.SERVER_PORT))
             print("["+thread_name+"] Connection established with server "
                   + str(self._server_ip) + ":" + str(self.SERVER_PORT))
@@ -178,16 +183,16 @@ if __name__ == "__main__":
     parser = OptionParser()
     parser.add_option("-a", action="store", type="string",
                       dest="address", help="IP address of the server.")
-    parser.add_option("-b", action="store", type="int",
-                      dest="batch_size",
-                      help="Number of jobs to send at a time.")
+    parser.add_option("-j", action="store", type="string", dest="job_file",
+                      help="File of jobs separated by newlines.")
+
+    # Parse and check the arguments
     (options, args) = parser.parse_args()
     if not options.address:
         parser.error("Server IP address was not provided.")
+    if not options.job_file:
+        parser.error("Job file was not provided.")
 
     # Start the client sender
-    if not options.batch_size:
-        KDFClient(options.address)
-    else:
-        KDFClient(options.address, options.batch_size)
+    KDFClient(options.address, options.job_file)
 

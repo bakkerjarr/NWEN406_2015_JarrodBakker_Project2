@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 #
 # Author: Jarrod N. Bakker
 # NWEN406 T2 2015, Project 2
@@ -71,6 +73,7 @@ class KDFClient():
         # Establish a connection
         try:
             sckt_out = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sckt_out.settimeout(360)
             sckt_out.connect((self._server_ip, self.SERVER_PORT))
             # Client has successfully connected to the server.
         except:
